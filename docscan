@@ -1,0 +1,60 @@
+#!/bin/bash
+#      _
+#   __| | ___   ___ ___  ___ __ _ _ __
+#  / _` |/ _ \ / __/ __|/ __/ _` | '_ \
+# | (_| | (_) | (__\__ \ (_| (_| | | | |
+#  \__,_|\___/ \___|___/\___\__,_|_| |_|
+#
+# Scan a series of pages and combine into a pdf document.
+# First creates png files, converts them to pdf, then combines pdf files into
+# one.
+# Usage: docscan [no. of files] [pdf filename]
+set -e
+
+export BCOUNT=$1
+if [[ $BCOUNT -eq "" ]]; then
+  export BCOUNT="1"
+fi
+# Check if more than one argument
+if [[ $# -gt 1 ]]; then
+  export FNAME=$2
+else
+  export FNAME="docscan"
+fi
+# Get device - Currently set to look for epson2 compatible scanner on usb.
+# Can also grep on "airscan" for wireless functionality, but response is
+# not consistent.
+DEVICE=$(scanimage -L | grep "epson2" | cut -d'`' -f2 | cut -d"'" -f1)
+
+echo "Device is $DEVICE"
+
+# Create temporary directory to hold png and initial pdf files
+DIR=`mktemp -d`
+# Get current directory
+CUR=$PWD
+# Go into temporary directory
+cd $DIR
+# Use scanimage to create the png file(s)
+scanimage --device-name=$DEVICE --format=png --batch=scan%.3d.png \
+  --batch-count=$BCOUNT --batch-prompt --mode Color --resolution 300 \
+  -x 210 -y 297
+
+# Convert png files to pdf
+for file in $(ls scan*.png)
+do
+  STEM=$(ls $file | cut -d"." -f1 -)
+  echo "Converting $file to pdf..."
+  convert $file $STEM.pdf
+done
+
+# Merge to one pdf
+echo "Merging to single $FNAME.pdf..."
+gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/default \
+  -dNOPAUSE -dQUIET -dBATCH -r300 -sPAPERSIZE=a4 \
+  -sOutputFile=$CUR/$FNAME.pdf scan*.pdf
+
+# Remove temporary files
+rm -fr $DIR
+
+# Preview in zathura
+zathura $CUR/$FNAME.pdf &
