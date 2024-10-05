@@ -11,7 +11,7 @@ set -e
 
 export FILENAME=$1
 if [[ $FILENAME == "" ]]; then
-  export FILENAME="scan"
+  export FILENAME=$(uuid --time)
 fi
 
 # Get device - Currently set to look for epson2 compatible scanner on usb.

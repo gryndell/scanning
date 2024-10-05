@@ -19,7 +19,7 @@ fi
 if [[ $# -gt 1 ]]; then
   export FNAME=$2
 else
-  export FNAME="docscan"
+  export FNAME=$(uuid --time)
 fi
 # Get device - Currently set to look for epson2 compatible scanner on usb.
 # Can also grep on "airscan" for wireless functionality, but response is
