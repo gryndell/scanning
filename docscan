@@ -9,52 +9,91 @@
 # First creates png files, converts them to pdf, then combines pdf files into
 # one.
 # Usage: docscan [no. of files] [pdf filename]
+# todo:
+
 set -e
 
-export BCOUNT=$1
-if [[ $BCOUNT -eq "" ]]; then
-  export BCOUNT="1"
-fi
-# Check if more than one argument
-if [[ $# -gt 1 ]]; then
-  export FNAME=$2
-else
-  export FNAME=$(uuidgen)
-fi
-# Get device - Currently set to look for epson2 compatible scanner on usb.
-# Can also grep on "airscan" for wireless functionality, but response is
-# not consistent.
-DEVICE=$(scanimage -L | grep "epson2" | cut -d'`' -f2 | cut -d"'" -f1)
+cd $HOME
 
-echo "Device is $DEVICE"
+NUMRE='^[0-9]+$'
 
-# Create temporary directory to hold png and initial pdf files
-DIR=`mktemp -d`
-# Get current directory
-CUR=$PWD
-# Go into temporary directory
-cd $DIR
-# Use scanimage to create the png file(s)
-scanimage --device-name=$DEVICE --format=png --batch=scan%.3d.png \
-  --batch-count=$BCOUNT --batch-prompt --mode Color --resolution 300 \
-  -x 210 -y 297
+function scandoc ()
+{
+  export DOCNAME=$(uuidgen)
+  # Get device - Currently set to look for epson2 compatible scanner on usb.
+  # Can also grep on "airscan" for wireless functionality, but response is
+  # not consistent.
+  DEVICE=$(scanimage -L | grep "epson2" | cut -d'`' -f2 | cut -d"'" -f1)
 
-# Convert png files to pdf
-for file in $(ls scan*.png)
-do
-  STEM=$(ls $file | cut -d"." -f1 -)
-  echo "Converting $file to pdf..."
-  convert $file $STEM.pdf
+  echo "Device is $DEVICE"
+
+  # Create temporary directory to hold png and initial pdf files
+  DIR=`mktemp -d`
+  # Get current directory
+  CUR=$PWD
+  # Go into temporary directory
+  cd $DIR
+  # Use scanimage to create the png file(s)
+  scanimage --device-name=$DEVICE --format=png --batch=scan%.3d.png \
+    --batch-count=$1 --batch-prompt --mode Color --resolution 300 \
+    -x 210 -y 297
+
+  # Convert png files to pdf
+  for file in $(ls scan*.png)
+  do
+    STEM=$(ls $file | cut -d"." -f1 -)
+    echo "Converting $file to pdf..."
+    magick $file $STEM.pdf
+  done
+
+  # Merge to one pdf
+  echo "Merging to single $DOCNAME.pdf..."
+  gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/default \
+    -dNOPAUSE -dQUIET -dBATCH -r300 -sPAPERSIZE=a4 \
+    -sOutputFile=$CUR/$DOCNAME.pdf scan*.pdf
+
+  # Remove temporary files
+  rm -fr $DIR
+}
+
+# Loop until user quits
+while true; do
+  clear
+  echo "      _"
+  echo "   __| | ___   ___ ___  ___ __ _ _ __"
+  echo "  / _\` |/ _ \\ / __/ __|/ __/ _\` | '_ \\"
+  echo " | (_| | (_) | (__\\__ \\ (_| (_| | | | |"
+  echo "  \\__,_|\\___/ \\___|___/\\___\\__,_|_| |_|"
+  echo ""
+  echo "How many pages [1]? (Q to Quit)"
+
+  read -p "Pages: " PAGES
+  case $PAGES in
+    q|Q)
+      break
+    ;;
+    *)
+      if [[ $PAGES == "" ]]; then
+        PAGES=1
+      fi
+      if ! [[ $PAGES =~ $NUMRE ]] || [[ $PAGES -lt 1 ]]; then
+        echo "Error: $PAGES is not a valid number of pages. Please try again." >&2
+        sleep 1
+      else
+        scandoc $PAGES
+        echo "Scanned $PAGES pages to $DOCNAME.pdf"
+        sleep 3
+        read -p "Do you want to preview the document(y/n)?" CHOICE
+        case $CHOICE in
+          y|Y)
+            zathura $CUR/$DOCNAME.pdf
+          ;;
+          *)
+          ;;
+        esac
+      fi
+    ;;
+  esac
 done
+exit 0
 
-# Merge to one pdf
-echo "Merging to single $FNAME.pdf..."
-gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/default \
-  -dNOPAUSE -dQUIET -dBATCH -r300 -sPAPERSIZE=a4 \
-  -sOutputFile=$CUR/$FNAME.pdf scan*.pdf
-
-# Remove temporary files
-rm -fr $DIR
-
-# Preview in zathura
-zathura $CUR/$FNAME.pdf &
