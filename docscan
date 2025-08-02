@@ -19,7 +19,7 @@ NUMRE='^[0-9]+$'
 
 function scandoc ()
 {
-  export DOCNAME=$(uuidgen)
+  export PDFNAME=$(mktemp -u XXXXXXXX.pdf)
   # Get device - Currently set to look for epson2 compatible scanner on usb.
   # Can also grep on "airscan" for wireless functionality, but response is
   # not consistent.
@@ -47,10 +47,10 @@ function scandoc ()
   done
 
   # Merge to one pdf
-  echo "Merging to single $DOCNAME.pdf..."
+  echo "Merging to single $PDFNAME..."
   gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/default \
     -dNOPAUSE -dQUIET -dBATCH -r300 -sPAPERSIZE=a4 \
-    -sOutputFile=$CUR/$DOCNAME.pdf scan*.pdf
+    -sOutputFile=$CUR/$PDFNAME scan*.pdf
 
   # Remove temporary files
   rm -fr $DIR
@@ -81,12 +81,12 @@ while true; do
         sleep 1
       else
         scandoc $PAGES
-        echo "Scanned $PAGES pages to $DOCNAME.pdf"
+        echo "Scanned $PAGES pages to $PDFNAME"
         sleep 3
         read -p "Do you want to preview the document(y/n)?" CHOICE
         case $CHOICE in
           y|Y)
-            zathura $CUR/$DOCNAME.pdf
+            zathura $CUR/$PDFNAME
           ;;
           *)
           ;;
