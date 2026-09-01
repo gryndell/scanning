@@ -86,7 +86,7 @@ while true; do
         read -p "Do you want to preview the document(y/n)?" CHOICE
         case $CHOICE in
           y|Y)
-            zathura $CUR/$PDFNAME
+            /usr/bin/xdg-open $CUR/$PDFNAME
           ;;
           *)
           ;;
